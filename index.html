@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Face + Uniform System</title>
+<title>Face + Uniform Demo</title>
 <style>
 body {
     background:#111;
@@ -32,11 +32,11 @@ body {
 </head>
 <body>
 
-<h1>Face + Uniform Check</h1>
+<h1>Face + Uniform Demo</h1>
 
 <video id="camera" autoplay playsinline></video>
 <canvas id="canvas"></canvas>
-<div id="result">Starting…</div>
+<div id="result">Starting demo…</div>
 
 <script>
 let video = document.getElementById("camera");
@@ -54,19 +54,14 @@ function captureFrame() {
     canvas.height = video.videoHeight;
     ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    return new Promise(resolve => canvas.toBlob(resolve, "image/jpeg"));
 }
 
-// Draw face bounding box
-function drawFaceBox(box, match) {
-    if(!box) return;
-    let scaleX = canvas.width / video.videoWidth;
-    let scaleY = canvas.height / video.videoHeight;
-
-    let x = box.left * scaleX;
-    let y = box.top * scaleY;
-    let w = (box.right - box.left) * scaleX;
-    let h = (box.bottom - box.top) * scaleY;
+// Draw demo face box
+function drawDemoBox(match) {
+    let x = canvas.width/3;
+    let y = canvas.height/4;
+    let w = canvas.width/3;
+    let h = canvas.height/3;
 
     ctx.strokeStyle = match ? "lime" : "red";
     ctx.lineWidth = 4;
@@ -75,49 +70,29 @@ function drawFaceBox(box, match) {
     if(match){
         ctx.font = "20px Arial";
         ctx.fillStyle = "lime";
-        let id = document.getElementById("result").innerText.split(": ")[1];
-        ctx.fillText("ID: "+id, x, y-10);
+        ctx.fillText("ID: A101", x, y-10);
     }
 }
 
-// Send face to server
-async function sendFace() {
-    document.getElementById("result").innerHTML = "Checking face…";
+// Demo: simulate face recognition & uniform
+function demoCheck() {
+    captureFrame();
 
-    let blob = await captureFrame();
-    let fd = new FormData();
-    fd.append("image", blob);
+    // Randomly decide if face matches
+    let faceMatch = Math.random() > 0.2; // 80% chance match
+    drawDemoBox(faceMatch);
 
-    let res = await fetch("/check_face", { method:"POST", body:fd });
-    let data = await res.json();
+    let faceText = faceMatch ? "✔ Face Match: A101" : "❌ Face Not Recognized";
+    let uniformText = faceMatch ? "✔ Uniform OK" : "❌ Uniform Not OK";
 
-    if(data.match){
-        document.getElementById("result").innerHTML = "✔ Face Match: " + data.id;
-    } else {
-        document.getElementById("result").innerHTML = "❌ Face Not Recognized";
-    }
+    document.getElementById("result").innerHTML = faceText + "<br>" + uniformText;
 
-    drawFaceBox(data.box, data.match);
-    sendUniform();
+    // Repeat every 3 seconds
+    setTimeout(demoCheck, 3000);
 }
 
-// Send uniform to server
-async function sendUniform() {
-    document.getElementById("result").innerHTML += "<br>Checking uniform…";
-
-    let blob = await captureFrame();
-    let fd = new FormData();
-    fd.append("image", blob);
-
-    let res = await fetch("/check_uniform", { method:"POST", body:fd });
-    let data = await res.json();
-
-    let status = data.uniform_ok ? "✔ Uniform OK" : "❌ Uniform Not OK";
-    document.getElementById("result").innerHTML += "<br>" + status;
-}
-
-// Start process automatically after 2 seconds
-setTimeout(sendFace, 2000);
+// Start demo after 1 second
+setTimeout(demoCheck, 1000);
 </script>
 
 </body>
