@@ -56,22 +56,25 @@ function captureFrame() {
 }
 
 // Draw bounding box
-function drawBox(x, y, w, h, color) {
-    ctx.strokeStyle = color;
+function drawFaceBox(box, match) {
+    let scaleX = canvas.width / video.videoWidth;
+    let scaleY = canvas.height / video.videoHeight;
+    let x = box.left * scaleX;
+    let y = box.top * scaleY;
+    let w = (box.right - box.left) * scaleX;
+    let h = (box.bottom - box.top) * scaleY;
+    ctx.strokeStyle = match ? "lime" : "red";
     ctx.lineWidth = 4;
     ctx.strokeRect(x, y, w, h);
+    // Display ID above box if matched
+    if(match){
+        ctx.font = "20px Arial";
+        ctx.fillStyle = "lime";
+        ctx.fillText("ID: "+document.getElementById("result").innerText.split(": ")[1], x, y-10);
+    }
 }
 
-// Simulate full-frame bounding (covers center of video)
-function simulateFaceBox(match) {
-    let w = canvas.width/3;
-    let h = canvas.height/3;
-    let x = canvas.width/3;
-    let y = canvas.height/4;
-    drawBox(x, y, w, h, match ? "lime" : "red");
-}
-
-// Send face to server
+// Send face
 async function sendFace() {
     document.getElementById("result").innerHTML = "Checking face…";
 
@@ -82,22 +85,18 @@ async function sendFace() {
     let res = await fetch("/check_face", { method:"POST", body:fd });
     let data = await res.json();
 
-    let matched = false;
-    if (data.match) {
-        matched = true;
+    if(data.match){
         document.getElementById("result").innerHTML = "✔ Face Match: " + data.id;
     } else {
         document.getElementById("result").innerHTML = "❌ Face Not Recognized";
     }
 
-    // Draw box
-    simulateFaceBox(matched);
+    drawFaceBox(data.box, data.match);
 
-    // Continue with uniform check
     sendUniform();
 }
 
-// Send uniform image
+// Send uniform
 async function sendUniform() {
     document.getElementById("result").innerHTML += "<br>Checking uniform…";
 
