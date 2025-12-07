@@ -3,25 +3,30 @@
 <head>
 <title>Face + Uniform System</title>
 <style>
-    body {
-        background:#111;
-        color:#eee;
-        text-align:center;
-        font-family:Arial, sans-serif;
-    }
-    #camera {
-        width:80%;
-        margin-top:20px;
-        border-radius:12px;
-        border:3px solid #333;
-    }
-    #result {
-        margin-top:25px;
-        padding:15px;
-        font-size:22px;
-        background:#222;
-        border-radius:10px;
-    }
+body {
+    background:#111;
+    color:#eee;
+    text-align:center;
+    font-family:Arial, sans-serif;
+}
+#camera {
+    width:80%;
+    margin-top:20px;
+    border-radius:12px;
+    border:3px solid #333;
+}
+#canvas {
+    position:absolute;
+    left:10%;
+    top:150px;
+}
+#result {
+    margin-top:25px;
+    padding:15px;
+    font-size:22px;
+    background:#222;
+    border-radius:10px;
+}
 </style>
 </head>
 <body>
@@ -29,66 +34,87 @@
 <h1>Face + Uniform Check</h1>
 
 <video id="camera" autoplay playsinline></video>
-<canvas id="canvas" style="display:none;"></canvas>
-
+<canvas id="canvas"></canvas>
 <div id="result">Starting…</div>
 
 <script>
-// ====== START CAMERA ======
 let video = document.getElementById("camera");
+let canvas = document.getElementById("canvas");
+let ctx = canvas.getContext("2d");
 
+// Start camera
 navigator.mediaDevices.getUserMedia({ video: true })
 .then(stream => { video.srcObject = stream; })
 .catch(err => { document.getElementById("result").innerHTML = "Camera Error"; });
 
-// ====== CAPTURE FRAME ======
-function capture() {
-    return new Promise(resolve => {
-        let canvas = document.getElementById("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext("2d").drawImage(video, 0, 0);
-        canvas.toBlob(resolve, "image/jpeg");
-    });
+// Capture frame
+function captureFrame() {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    return new Promise(resolve => canvas.toBlob(resolve, "image/jpeg"));
 }
 
-// ====== SEND FACE ======
+// Draw bounding box
+function drawBox(x, y, w, h, color) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 4;
+    ctx.strokeRect(x, y, w, h);
+}
+
+// Simulate full-frame bounding (covers center of video)
+function simulateFaceBox(match) {
+    let w = canvas.width/3;
+    let h = canvas.height/3;
+    let x = canvas.width/3;
+    let y = canvas.height/4;
+    drawBox(x, y, w, h, match ? "lime" : "red");
+}
+
+// Send face to server
 async function sendFace() {
     document.getElementById("result").innerHTML = "Checking face…";
 
-    let blob = await capture();
+    let blob = await captureFrame();
     let fd = new FormData();
     fd.append("image", blob);
 
     let res = await fetch("/check_face", { method:"POST", body:fd });
     let data = await res.json();
 
-    if (!data.match) {
+    let matched = false;
+    if (data.match) {
+        matched = true;
+        document.getElementById("result").innerHTML = "✔ Face Match: " + data.id;
+    } else {
         document.getElementById("result").innerHTML = "❌ Face Not Recognized";
-        return;
     }
 
-    document.getElementById("result").innerHTML = "✔ Face Match: " + data.id;
+    // Draw box
+    simulateFaceBox(matched);
+
+    // Continue with uniform check
     sendUniform();
 }
 
-// ====== SEND UNIFORM ======
+// Send uniform image
 async function sendUniform() {
     document.getElementById("result").innerHTML += "<br>Checking uniform…";
 
-    let blob = await capture();
+    let blob = await captureFrame();
     let fd = new FormData();
     fd.append("image", blob);
 
     let res = await fetch("/check_uniform", { method:"POST", body:fd });
     let data = await res.json();
 
-    document.getElementById("result").innerHTML += "<br>✔ Uniform: " + data.uniform;
+    let status = data.uniform_ok ? "✔ Uniform OK" : "❌ Uniform Not OK";
+    document.getElementById("result").innerHTML += "<br>" + status;
 }
 
-// Start after 2 seconds
+// Start process after 2 seconds
 setTimeout(sendFace, 2000);
-
 </script>
+
 </body>
 </html>
