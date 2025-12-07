@@ -19,6 +19,7 @@ body {
     position:absolute;
     left:10%;
     top:150px;
+    pointer-events:none;
 }
 #result {
     margin-top:25px;
@@ -51,30 +52,35 @@ navigator.mediaDevices.getUserMedia({ video: true })
 function captureFrame() {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     return new Promise(resolve => canvas.toBlob(resolve, "image/jpeg"));
 }
 
-// Draw bounding box
+// Draw face bounding box
 function drawFaceBox(box, match) {
+    if(!box) return;
     let scaleX = canvas.width / video.videoWidth;
     let scaleY = canvas.height / video.videoHeight;
+
     let x = box.left * scaleX;
     let y = box.top * scaleY;
     let w = (box.right - box.left) * scaleX;
     let h = (box.bottom - box.top) * scaleY;
+
     ctx.strokeStyle = match ? "lime" : "red";
     ctx.lineWidth = 4;
     ctx.strokeRect(x, y, w, h);
-    // Display ID above box if matched
+
     if(match){
         ctx.font = "20px Arial";
         ctx.fillStyle = "lime";
-        ctx.fillText("ID: "+document.getElementById("result").innerText.split(": ")[1], x, y-10);
+        let id = document.getElementById("result").innerText.split(": ")[1];
+        ctx.fillText("ID: "+id, x, y-10);
     }
 }
 
-// Send face
+// Send face to server
 async function sendFace() {
     document.getElementById("result").innerHTML = "Checking face…";
 
@@ -92,11 +98,10 @@ async function sendFace() {
     }
 
     drawFaceBox(data.box, data.match);
-
     sendUniform();
 }
 
-// Send uniform
+// Send uniform to server
 async function sendUniform() {
     document.getElementById("result").innerHTML += "<br>Checking uniform…";
 
@@ -111,7 +116,7 @@ async function sendUniform() {
     document.getElementById("result").innerHTML += "<br>" + status;
 }
 
-// Start process after 2 seconds
+// Start process automatically after 2 seconds
 setTimeout(sendFace, 2000);
 </script>
 
