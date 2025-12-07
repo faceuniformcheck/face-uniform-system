@@ -36,12 +36,12 @@ def check_face():
     encs = face_recognition.face_encodings(frame, face_locations)
 
     if len(encs) == 0:
-        return jsonify({"match": False})
+        return jsonify({"match": False, "box": None})
 
     enc = encs[0]
-    match = face_recognition.compare_faces(known_encodings, enc)
-
     top, right, bottom, left = face_locations[0]
+
+    match = face_recognition.compare_faces(known_encodings, enc)
 
     if True in match:
         idx = match.index(True)
