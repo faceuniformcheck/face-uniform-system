@@ -7,7 +7,7 @@ import os
 app = Flask(__name__)
 
 # -------------------------------
-# LOAD KNOWN FACES
+# Load known faces
 # -------------------------------
 known_encodings = []
 known_ids = []
@@ -24,7 +24,7 @@ for file in os.listdir("known_faces"):
 
 
 # -------------------------------
-# FACE CHECK
+# Face check
 # -------------------------------
 @app.route("/check_face", methods=["POST"])
 def check_face():
@@ -32,23 +32,34 @@ def check_face():
     buf = np.frombuffer(file.read(), np.uint8)
     frame = cv2.imdecode(buf, cv2.IMREAD_COLOR)
 
-    encs = face_recognition.face_encodings(frame)
+    face_locations = face_recognition.face_locations(frame)
+    encs = face_recognition.face_encodings(frame, face_locations)
+
     if len(encs) == 0:
         return jsonify({"match": False})
 
     enc = encs[0]
     match = face_recognition.compare_faces(known_encodings, enc)
 
+    top, right, bottom, left = face_locations[0]
+
     if True in match:
         idx = match.index(True)
         sid = known_ids[idx]
-        return jsonify({"match": True, "id": sid})
+        return jsonify({
+            "match": True,
+            "id": sid,
+            "box": {"top": top, "right": right, "bottom": bottom, "left": left}
+        })
 
-    return jsonify({"match": False})
+    return jsonify({
+        "match": False,
+        "box": {"top": top, "right": right, "bottom": bottom, "left": left}
+    })
 
 
 # -------------------------------
-# UNIFORM CHECK (COLOR BASED)
+# Uniform check
 # -------------------------------
 @app.route("/check_uniform", methods=["POST"])
 def check_uniform():
@@ -59,15 +70,12 @@ def check_uniform():
     hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
     # --- expected uniform colors ---
-    # white shirt
     white_low = np.array([0, 0, 170])
     white_high = np.array([179, 30, 255])
 
-    # navy blue vest, tie, pant
     navy_low = np.array([90, 80, 20])
     navy_high = np.array([130, 255, 80])
 
-    # black shoes
     black_low = np.array([0, 0, 0])
     black_high = np.array([179, 255, 40])
 
